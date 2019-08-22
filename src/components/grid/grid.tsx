@@ -195,7 +195,6 @@ export class SuiGrid {
                 <input
                   type="checkbox"
                   checked={isSelected}
-                  tabIndex={activeCellId === `0-${rowIndex}` ? 0 : -1}
                   ref={activeCellId === `0-${rowIndex}` ? (el) => { this._focusRef = el; } : null}
                   onChange={(event) => this.onRowSelect(cells, (event.target as HTMLInputElement).checked)}
                 />
@@ -207,7 +206,7 @@ export class SuiGrid {
                   role="gridcell"
                   class={{'cell': true, 'editing': this.isEditing && isActiveCell }}
                   id={`cell-${rowIndex}-${cellIndex}`}
-                  tabIndex={isActiveCell ? 0 : -1}
+                  tabIndex={0}
                   ref={isActiveCell && !this.isEditing ? (el) => { this._focusRef = el; } : null}
                   onClick={() => { this.onCellClick(rowIndex, cellIndex + 1); }}
                   onDblClick={this.onCellDoubleClick.bind(this)}
