@@ -43,11 +43,6 @@
   background-color: #b5daf6;
 }
 
-.row:focus {
-  background-color: #0067b8;
-  color: #fff;
-}
-
 .selection-indicator {
   display: block;
   height: 1.6em;
@@ -58,10 +53,6 @@
 .checkbox-cell .selection-indicator {
   background: #fff;
   border: 1px solid #333;
-}
-
-input:focus ~ .selection-indicator {
-  box-shadow: 0 0 1px 3px #0067b8;
 }
 
 input:checked ~ .selection-indicator::after,
@@ -91,11 +82,6 @@ input:checked ~ .selection-indicator::after,
   overflow: hidden;
   padding: 0;
   text-overflow: ellipsis;
-}
-
-.cell:focus {
-  background-color: #0067b8;
-  color: #fff;
 }
 
 .cell:first-child,

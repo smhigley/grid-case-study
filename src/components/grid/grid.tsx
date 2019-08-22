@@ -248,6 +248,9 @@ export class SuiGrid {
     if (this.activeCell.join('-') === `${column}-${row}`) {
       this.updateEditing(true);
     }
+    else {
+      this.updateEditing(false);
+    }
     this.activeCell = [column, row];
   }
 
