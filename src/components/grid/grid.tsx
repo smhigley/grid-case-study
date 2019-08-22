@@ -197,7 +197,6 @@ export class SuiGrid {
               }
               if (column.filterable) {
                 controls.push(
-                  <label id={`${idBase}-filter`} class="visuallyHidden">Filter</label>,
                   <input type="text" class="filter-input" onInput={(event) => this.onFilterInput((event.target as HTMLInputElement).value, column)} />
                 );
               }
