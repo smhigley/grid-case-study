@@ -103,12 +103,6 @@ export class SuiGrid {
    */
   private _sortedCells: string[][];
 
-  /*
-   * DOM Refs:
-   */
-  // Save a reference to whatever element should receive focus
-  private _focusRef: HTMLElement;
-
   @Watch('cells')
   watchCells(newValue: string[][]) {
     this._sortedCells = this.getSortedCells(newValue);
@@ -196,7 +190,6 @@ export class SuiGrid {
                   type="checkbox"
                   checked={isSelected}
                   tabIndex={activeCellId === `0-${rowIndex}` ? 0 : -1}
-                  ref={activeCellId === `0-${rowIndex}` ? (el) => { this._focusRef = el; } : null}
                   onChange={(event) => this.onRowSelect(cells, (event.target as HTMLInputElement).checked)}
                 />
                 <span class="selection-indicator"></span>
@@ -208,12 +201,11 @@ export class SuiGrid {
                   class={{'cell': true, 'editing': this.isEditing && isActiveCell }}
                   id={`cell-${rowIndex}-${cellIndex}`}
                   tabIndex={isActiveCell ? 0 : -1}
-                  ref={isActiveCell && !this.isEditing ? (el) => { this._focusRef = el; } : null}
                   onClick={() => { this.onCellClick(rowIndex, cellIndex + 1); }}
                   onDblClick={this.onCellDoubleClick.bind(this)}
                 >
                   {this.isEditing && isActiveCell
-                    ? <input value={cell} class="cell-edit" ref={(el) => this._focusRef = el} />
+                    ? <input value={cell} class="cell-edit" />
                     : <span class="cell-content">{cell}</span>
                   }
                 </td>;
