@@ -1,10 +1,13 @@
 
 import { Component, Event, EventEmitter, Listen, Prop, State, Watch } from '@stencil/core';
 import { Column } from './grid-helpers';
-import { renderRow, RowOptions, RowSelectionPattern } from './row';
-import { renderHeaderCell, Sort } from './header-cell';
-import { renderPager } from './pager';
 import nanoid from 'nanoid/non-secure';
+
+enum Sort {
+  Ascending = 'ascending',
+  Descending = 'descending',
+  None = 'none'
+}
 
 @Component({
   tag: 'sui-grid',
@@ -27,24 +30,9 @@ export class SuiGrid {
   @Prop() description: string;
 
   /**
-   * Grid type: grids have controlled focus and fancy behavior, tables are simple static content
-   */
-  @Prop() gridType: 'grid' | 'table';
-
-  /**
-   * For virutalized grids and paged grids, used to determine the current row indices of the cells array
-   */
-  @Prop() initialRowIndex = 0;
-
-  /**
    * String ID of labelling element
    */
-  @Prop() labelledBy: string;
-
-  /**
-   * Optional: total rows. Will default to calculating based on cells
-   */
-  @Prop() totalRows: number;
+  @Prop() labelledby: string;
 
   /**
    * Number of rows in one "page": used to compute pageUp/pageDown key behavior, and when paging is used
@@ -52,23 +40,16 @@ export class SuiGrid {
   @Prop() pageLength = 30;
 
   /**
-   * Custom function to control the render of cell content
+   * Index of the column that best labels a row
    */
-  @Prop() renderCustomCell: (content: string, colIndex: number, rowIndex: number) => string | HTMLElement;
+  @Prop() titleColumn = 0;
 
   /**
-   * If set to true and the total number of rows is greater than the page length + a buffer,
-   * rows will only be rendered to the DOM on demand.
-   * If rows are in view without data provided in the `cells` property, they will show as loading
+   * Emit a custom cell edit event
    */
-  @Prop() virtualized = false;
-
-  /** Properties for Usability test case behaviors: **/
-  @Prop() actionsColumn: boolean;
-  @Prop() editable: boolean = true;
-  @Prop() editOnClick: boolean;
-  @Prop() headerActionsMenu: boolean;
-  @Prop() rowSelection: RowSelectionPattern;
+  @Event({
+    eventName: 'editCell'
+  }) editCellEvent: EventEmitter<{value: string; column: number; row: number;}>;
 
   /**
    * Emit a custom filter event
@@ -83,18 +64,6 @@ export class SuiGrid {
   @Event({
     eventName: 'rowSelect'
   }) rowSelectionEvent: EventEmitter;
-
-  /**
-   * Emit a page change event
-   */
-  @Event({
-    eventName: 'pageChange'
-  }) pageChangeEvent: EventEmitter;
-
-  /**
-   * Current page
-   */
-  @State() page = 1;
 
   /**
    * Save number of selected rows
@@ -134,11 +103,6 @@ export class SuiGrid {
    */
   private _sortedCells: string[][];
 
-  /**
-   * Save private calculation of total rows based on totalRows and cells properties
-   */
-  private _totalRows = 0;
-
   /*
    * DOM Refs:
    */
@@ -154,7 +118,6 @@ export class SuiGrid {
   @Watch('cells')
   watchCells(newValue: string[][]) {
     this._sortedCells = this.getSortedCells(newValue);
-    this._totalRows = this.totalRows || newValue.length;
 
     // reset selectedRowCount
     let selectedRowCount = 0;
@@ -165,15 +128,9 @@ export class SuiGrid {
     this.selectedRowCount = selectedRowCount;
   }
 
-  @Watch('totalRows')
-  watchRows(newValue: number) {
-    this._totalRows = newValue;
-  }
-
   componentWillLoad() {
     const { cells = [] } = this;
     this._sortedCells = cells;
-    this._totalRows = this.totalRows || cells.length;
     // generate unique keys for each row, mapped to the cell[] object
     cells.forEach((row: string[]) => {
       !this._rowKeys.has(row) && this._rowKeys.set(row, nanoid(8));
@@ -192,7 +149,7 @@ export class SuiGrid {
 
   @Listen('focusout')
   onBlur(event: FocusEvent) {
-    if (event.relatedTarget !== this._focusRef) {
+    if (this.isEditing && event.relatedTarget && event.relatedTarget !== this._focusRef) {
       this.updateEditing(false, false);
     }
   }
@@ -201,81 +158,99 @@ export class SuiGrid {
     const {
       columns = [],
       description,
-      gridType = 'table',
-      headerActionsMenu,
-      page,
-      rowSelection,
+      labelledby,
       _selectedRows,
       _sortedCells = [],
       sortedColumn,
       sortState
     } = this;
     const rowSelectionState = this.getSelectionState();
+    const activeCellId = this.activeCell.join('-');
 
     return <div class="grid-container">
-      <table role={gridType} class="grid" aria-labelledby={this.labelledBy}>
-        {description ? <caption>{description}</caption> : null}
+      <table role="grid" class="grid" aria-labelledby={labelledby}>
+        {description ? <caption class="grid-caption">{description}</caption> : null}
         <thead role="rowgroup" class="grid-header">
           <tr role="row" class="row">
-            {rowSelection !== RowSelectionPattern.None ?
-              <th role="columnheader" class={{'checkbox-cell': true, 'indeterminate': rowSelectionState === 'indeterminate'}}>
-                <span class="visuallyHidden">select row</span>
-                <input
-                  type="checkbox"
-                  aria-label={rowSelectionState ? 'deselect all rows' : 'select all rows'}
-                  checked={!!rowSelectionState}
-                  ref={(el) => {
-                    if (rowSelectionState === 'indeterminate') {
-                      el.indeterminate = true;
-                    }
-                  }}
-                  onChange={(event) => this.onSelectAll((event.target as HTMLInputElement).checked)} />
-                <span class="selection-indicator"></span>
-              </th>
-            : null}
+            <th role="columnheader" class={{'checkbox-cell': true, 'indeterminate': rowSelectionState === 'indeterminate'}}>
+              <input
+                type="checkbox"
+                aria-label="select all rows"
+                checked={!!rowSelectionState}
+                ref={(el) => {
+                  if (rowSelectionState === 'indeterminate') {
+                    el.indeterminate = true;
+                  }
+                }}
+                onChange={(event) => this.onSelectAll((event.target as HTMLInputElement).checked)} />
+              <span class="selection-indicator"></span>
+            </th>
             {columns.map((column, index) => {
-              return renderHeaderCell({
-                column,
-                colIndex: index,
-                actionsMenu: headerActionsMenu,
-                isSortedColumn: sortedColumn === index,
-                sortDirection: sortState,
-                onSort: this.onSortColumn.bind(this),
-                onFilter: this.onFilterInput.bind(this)
-              });
+              const controls = [];
+              const idBase = `col-${index}`;
+              const isSortedColumn = sortedColumn === index;
+              if (column.sortable) {
+                controls.push(<button
+                  class={{ 'filter-button': true, 'grid-button': true, [sortState]: isSortedColumn }}
+                  aria-labelledby={`${idBase}-sort ${idBase}`}
+                  onClick={() => this.onSortColumn(index)}
+                >
+                  <img alt={isSortedColumn ? sortState : 'sort'} id={`${idBase}-sort`} role="img" src={`/assets/sort-${isSortedColumn ? sortState : 'none'}.svg`} />
+                </button>);
+              }
+              if (column.filterable) {
+                controls.push(
+                  <label id={`${idBase}-filter`} class="visuallyHidden">Filter</label>,
+                  <input type="text" aria-labelledby={`${idBase}-filter ${idBase}`} class="filter-input" onInput={(event) => this.onFilterInput((event.target as HTMLInputElement).value, column)} />
+                );
+              }
+
+              return <th role="columnheader" aria-labelledby={idBase} class="cell heading-cell" aria-sort={column.sortable ? isSortedColumn ? sortState : 'none' : null}>
+                <span id={idBase} class="column-title">{column.name}</span>
+                {...controls}
+              </th>
             })}
           </tr>
         </thead>
         <tbody role="rowgroup" class="grid-body" onKeyDown={this.onCellKeydown.bind(this)}>
-          {_sortedCells.map((cells = [], index) => {
+          {_sortedCells.map((cells = [], rowIndex) => {
             const isSelected = !!_selectedRows.get(cells);
-            let rowOptions: RowOptions = {
-              cells,
-              id: this._rowKeys.get(cells),
-              index,
-              isSelected,
-              selection: rowSelection,
-              renderCell: this.renderCell.bind(this),
-              onSelectionChange: this.onRowSelect.bind(this)
-            };
+            const rowId = this._rowKeys.get(cells);
 
-            if (this.rowSelection === RowSelectionPattern.Aria) {
-              const isActiveRow = this.activeCell[1] === index;
-              rowOptions = {
-                ...rowOptions,
-                isActiveRow,
-                setFocusRef: (el) => this._focusRef = el,
-                onRowKeyDown: this.onRowKeyDown.bind(this)
-              }
-            }
-            return renderRow(rowOptions);
+            return <tr role="row" key={rowId} class={{'row': true, 'selected-row': isSelected}}>
+              <td role="gridcell" class="checkbox-cell">
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  aria-labelledby={`cell-${rowIndex}-${this.titleColumn}`}
+                  tabIndex={activeCellId === `0-${rowIndex}` ? 0 : -1}
+                  ref={activeCellId === `0-${rowIndex}` ? (el) => { this._focusRef = el; } : null}
+                  onChange={(event) => this.onRowSelect(cells, (event.target as HTMLInputElement).checked)}
+                  onKeyDown={(event) => { (event.key === ' ' || event.key === 'Enter') && event.stopPropagation(); }}
+                />
+                <span class="selection-indicator"></span>
+              </td>
+              {cells.map((cell, cellIndex) => {
+                const isActiveCell = activeCellId === `${cellIndex + 1}-${rowIndex}`;
+                return <td
+                  role="gridcell"
+                  class={{'cell': true, 'editing': this.isEditing && isActiveCell }}
+                  id={`cell-${rowIndex}-${cellIndex}`}
+                  tabIndex={isActiveCell ? 0 : -1}
+                  ref={isActiveCell && !this.isEditing ? (el) => { this._focusRef = el; } : null}
+                  onClick={() => { this.onCellClick(rowIndex, cellIndex + 1); }}
+                  onDblClick={this.onCellDoubleClick.bind(this)}
+                >
+                  {this.isEditing && isActiveCell
+                    ? <input value={cell} class="cell-edit" onKeyDown={this.onInputKeyDown.bind(this)} ref={(el) => this._focusRef = el} />
+                    : <span class="cell-content">{cell}</span>
+                  }
+                </td>;
+              })}
+            </tr>;
           })}
         </tbody>
       </table>
-      {renderPager({ currentPage: page, totalPages: Math.ceil(this._totalRows / this.pageLength) })}
-      <div class="grid-pager">
-        Page {page} of {Math.ceil(this._totalRows / this.pageLength)}
-      </div>
     </div>;
   }
 
@@ -308,18 +283,15 @@ export class SuiGrid {
   }
 
   private onCellClick(row, column) {
-    // always edit on click if clicking the active cell
-    if (this.editOnClick || (this.activeCell[0] === column && this.activeCell[1] === row)) {
+    if (this.activeCell.join('-') === `${column}-${row}`) {
       this.updateEditing(true, true);
     }
     this.activeCell = [column, row];
   }
 
   private onCellDoubleClick(event) {
-    if (!this.editOnClick) {
-      this.updateEditing(true, true);
-      event.preventDefault();
-    }
+    this.updateEditing(true, true);
+    event.preventDefault();
   }
 
   private onCellKeydown(event: KeyboardEvent) {
@@ -336,13 +308,13 @@ export class SuiGrid {
         colIndex = Math.max(0, colIndex - 1);
         break;
       case 'ArrowRight':
-        colIndex = Math.min(this.columns.length - 1, colIndex + 1);
+        colIndex = Math.min(this.columns.length, colIndex + 1);
         break;
       case 'Home':
         colIndex = 0;
         break;
       case 'End':
-        colIndex = this.columns.length - 1;
+        colIndex = this.columns.length;
         break;
       case 'Enter':
       case ' ':
@@ -389,6 +361,10 @@ export class SuiGrid {
       this.updateEditing(false, true);
     }
 
+    if (key === 'Enter') {
+      this.editCellEvent.emit({value: (event.target as HTMLInputElement).value, column: this.activeCell[0] - 1, row: this.activeCell[1]});
+    }
+
     // allow tab and shift+tab to move through cells in a row
     else if (key === 'Tab') {
       if (shiftKey && this.activeCell[0] > 0) {
@@ -399,30 +375,6 @@ export class SuiGrid {
         this.updateActiveCell(this.activeCell[0] + 1, this.activeCell[1]);
         event.preventDefault();
       }
-    }
-  }
-
-  private onRowKeyDown(event: KeyboardEvent) {
-    const { pageLength } = this;
-    let [colIndex, rowIndex] = this.activeCell;
-    switch(event.key) {
-      case 'ArrowUp':
-        rowIndex = Math.max(0, rowIndex - 1);
-        break;
-      case 'ArrowDown':
-        rowIndex = Math.min(this.cells.length - 1, rowIndex + 1);
-        break;
-      case 'PageUp':
-        rowIndex = Math.max(0, rowIndex - pageLength);
-        break;
-      case 'PageDown':
-        rowIndex = Math.min(this.cells.length - 1, rowIndex + pageLength);
-        break;
-    }
-
-    if (this.updateActiveCell(colIndex, rowIndex)) {
-      event.preventDefault();
-      event.stopPropagation();
     }
   }
 
@@ -450,44 +402,6 @@ export class SuiGrid {
     this._sortedCells = this.getSortedCells(this.cells);
   }
 
-  private renderCell(rowIndex: number, cellIndex: number, content: string) {
-    const activeCellId = this.activeCell.join('-');
-    const isActiveCell = activeCellId === `${cellIndex}-${rowIndex}` && !(this.actionsColumn && content === 'actions');
-    const isGrid = this.gridType === 'grid';
-    return <td
-      role={isGrid ? 'gridcell' : 'cell'}
-      class={{'cell': true, 'editing': this.isEditing && isActiveCell }}
-      tabIndex={isGrid ? isActiveCell ? 0 : -1 : null}
-      ref={isActiveCell && !this.isEditing && this.rowSelection !== RowSelectionPattern.Aria ? (el) => { this._focusRef = el; } : null}
-      onClick={() => { this.onCellClick(rowIndex, cellIndex); }}
-      onDblClick={this.onCellDoubleClick.bind(this)}
-    >
-      {this.isEditing && isActiveCell
-        ? <input value={content} class="cell-edit" onKeyDown={this.onInputKeyDown.bind(this)} ref={(el) => this._focusRef = el} />
-        : <span class="cell-content">{this.renderCellContent(content, cellIndex, rowIndex)}</span>
-      }
-    </td>;
-  }
-
-  private renderCellContent(content: string, colIndex: number, rowIndex: number) {
-    const { actionsColumn = false, gridType, renderCustomCell = (content) => content } = this;
-    if (actionsColumn && content === 'actions') {
-      const isActiveCell = this.activeCell.join('-') === `${colIndex}-${rowIndex}`;
-      // spoof an action button
-      return <button
-        class="test-actions grid-button"
-        tabIndex={gridType === 'grid' ? isActiveCell ? 0 : -1 : null}
-        ref={isActiveCell && this.rowSelection !== RowSelectionPattern.Aria ? (el) => { this._focusRef = el; } : null}
-        onClick={(() => alert('This is just a test, there is no more content'))}
-        >
-          View
-        </button>;
-    }
-    else {
-      return renderCustomCell(content, colIndex, rowIndex);
-    }
-  }
-
   private updateActiveCell(colIndex, rowIndex): boolean {
     if (colIndex !== this.activeCell[0] || rowIndex !== this.activeCell[1]) {
       this._callFocus = true;
@@ -499,10 +413,6 @@ export class SuiGrid {
   }
 
   private updateEditing(editing: boolean, callFocus: boolean) {
-    if (!this.editable) {
-      return
-    };
-
     this.isEditing = editing;
     this._callFocus = callFocus;
     this._callInputSelection = editing && callFocus;

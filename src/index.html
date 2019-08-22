@@ -9,8 +9,8 @@
 </head>
 <body>
   <div role="main">
-    <h1>Grid demo</h1>
-    <sui-grid class="grid" labelledBy="grid-heading"></sui-grid>
+    <h1 id="grid-heading">Accessibility, my dear Watson</h1>
+    <sui-grid class="grid"></sui-grid>
   </div>
 
   <script type="text/javascript" async>
@@ -24,27 +24,31 @@
     }
 
     (async () => {
-      const data = await fetch('/assets/gridData.json');
+      const data = await fetch('/assets/holmes-data.json');
       const gridData = await data.json();
       const gridEl = document.querySelector('.grid');
-      let cellData = gridData.map((row) => {
-        return Object.keys(row).map((key) => row[key]);
-      });
-      gridEl.cells = cellData;
+      gridEl.cells = gridData;
+      gridEl.titleColumn = 2;
       gridEl.pageLength = 30;
+      gridEl.labelledby = "grid-heading";
+      gridEl.description = "Sort, filter, select, or edit the complete list of Sherlock Holmes stories";
       gridEl.rowSelection = 'none';
       gridEl.gridType = 'grid';
       gridEl.columns = [
-        {name: 'First', filterable: true},
-        {name: 'Last', sortable: true},
-        {name: 'Email'},
-        {name: 'Company'},
-        {name: 'Location', sortable: true, filterable: true}
+        {name: 'Year', sortable: true},
+        {name: 'Magazine', filterable: true},
+        {name: 'Title', sortable: true, filterable: true}
       ];
 
       gridEl.addEventListener('filter', function(event) {
-        const newData = filterByColumn(event.detail, cellData);
+        const newData = filterByColumn(event.detail, gridData);
         gridEl.cells = newData;
+      });
+
+      gridEl.addEventListener('editCell', function(event) {
+        const { value, column, row } = event.detail;
+        gridData[row][column] = value;
+        gridEl.cells = [...gridData];
       });
     })();
   </script>

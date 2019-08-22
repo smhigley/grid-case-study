@@ -11,9 +11,6 @@ import '@stencil/core';
 import {
   Column,
 } from './components/grid/grid-helpers';
-import {
-  RowSelectionPattern,
-} from './components/grid/row';
 
 
 export namespace Components {
@@ -49,10 +46,6 @@ export namespace Components {
 
   interface SuiGrid {
     /**
-    * Properties for Usability test case behaviors: *
-    */
-    'actionsColumn': boolean;
-    /**
     * Grid data
     */
     'cells': string[][];
@@ -64,44 +57,20 @@ export namespace Components {
     * Caption/description for the grid
     */
     'description': string;
-    'editOnClick': boolean;
-    'editable': boolean;
-    /**
-    * Grid type: grids have controlled focus and fancy behavior, tables are simple static content
-    */
-    'gridType': 'grid' | 'table';
-    'headerActionsMenu': boolean;
-    /**
-    * For virutalized grids and paged grids, used to determine the current row indices of the cells array
-    */
-    'initialRowIndex': number;
     /**
     * String ID of labelling element
     */
-    'labelledBy': string;
+    'labelledby': string;
     /**
     * Number of rows in one "page": used to compute pageUp/pageDown key behavior, and when paging is used
     */
     'pageLength': number;
     /**
-    * Custom function to control the render of cell content
+    * Index of the column that best labels a row
     */
-    'renderCustomCell': (content: string, colIndex: number, rowIndex: number) => string | HTMLElement;
-    'rowSelection': RowSelectionPattern;
-    /**
-    * Optional: total rows. Will default to calculating based on cells
-    */
-    'totalRows': number;
-    /**
-    * If set to true and the total number of rows is greater than the page length + a buffer, rows will only be rendered to the DOM on demand. If rows are in view without data provided in the `cells` property, they will show as loading
-    */
-    'virtualized': boolean;
+    'titleColumn': number;
   }
   interface SuiGridAttributes extends StencilHTMLAttributes {
-    /**
-    * Properties for Usability test case behaviors: *
-    */
-    'actionsColumn'?: boolean;
     /**
     * Grid data
     */
@@ -114,29 +83,18 @@ export namespace Components {
     * Caption/description for the grid
     */
     'description'?: string;
-    'editOnClick'?: boolean;
-    'editable'?: boolean;
-    /**
-    * Grid type: grids have controlled focus and fancy behavior, tables are simple static content
-    */
-    'gridType'?: 'grid' | 'table';
-    'headerActionsMenu'?: boolean;
-    /**
-    * For virutalized grids and paged grids, used to determine the current row indices of the cells array
-    */
-    'initialRowIndex'?: number;
     /**
     * String ID of labelling element
     */
-    'labelledBy'?: string;
+    'labelledby'?: string;
+    /**
+    * Emit a custom cell edit event
+    */
+    'onEditCell'?: (event: CustomEvent<{value: string; column: number; row: number;}>) => void;
     /**
     * Emit a custom filter event
     */
     'onFilter'?: (event: CustomEvent) => void;
-    /**
-    * Emit a page change event
-    */
-    'onPageChange'?: (event: CustomEvent) => void;
     /**
     * Emit a custom row selection event
     */
@@ -146,18 +104,9 @@ export namespace Components {
     */
     'pageLength'?: number;
     /**
-    * Custom function to control the render of cell content
+    * Index of the column that best labels a row
     */
-    'renderCustomCell'?: (content: string, colIndex: number, rowIndex: number) => string | HTMLElement;
-    'rowSelection'?: RowSelectionPattern;
-    /**
-    * Optional: total rows. Will default to calculating based on cells
-    */
-    'totalRows'?: number;
-    /**
-    * If set to true and the total number of rows is greater than the page length + a buffer, rows will only be rendered to the DOM on demand. If rows are in view without data provided in the `cells` property, they will show as loading
-    */
-    'virtualized'?: boolean;
+    'titleColumn'?: number;
   }
 }
 
