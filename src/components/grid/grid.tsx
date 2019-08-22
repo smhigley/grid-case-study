@@ -138,11 +138,11 @@ export class SuiGrid {
     const activeCellId = this.activeCell.join('-');
 
     return <div class="grid-container">
-      <table role="grid" class="grid">
+      <div class="grid">
         {description ? <caption class="grid-caption">{description}</caption> : null}
-        <thead role="rowgroup" class="grid-header">
-          <tr role="row" class="row">
-            <th role="columnheader" class={{'checkbox-cell': true, 'indeterminate': rowSelectionState === 'indeterminate'}}>
+        <div class="grid-header">
+          <div class="row">
+            <div class={{'checkbox-cell': true, 'indeterminate': rowSelectionState === 'indeterminate'}}>
               <input
                 type="checkbox"
                 checked={!!rowSelectionState}
@@ -153,7 +153,7 @@ export class SuiGrid {
                 }}
                 onChange={(event) => this.onSelectAll((event.target as HTMLInputElement).checked)} />
               <span class="selection-indicator"></span>
-            </th>
+            </div>
             {columns.map((column, index) => {
               const controls = [];
               const idBase = `col-${index}`;
@@ -172,31 +172,30 @@ export class SuiGrid {
                 );
               }
 
-              return <th role="columnheader" class="cell heading-cell">
+              return <div class="cell heading-cell">
                 <span id={idBase} class="column-title">{column.name}</span>
                 {...controls}
-              </th>
+              </div>
             })}
-          </tr>
-        </thead>
-        <tbody role="rowgroup" class="grid-body">
+          </div>
+        </div>
+        <div class="grid-body">
           {_sortedCells.map((cells = [], rowIndex) => {
             const isSelected = !!_selectedRows.get(cells);
             const rowId = this._rowKeys.get(cells);
 
-            return <tr role="row" key={rowId} class={{'row': true, 'selected-row': isSelected}}>
-              <td role="gridcell" class="checkbox-cell">
+            return <div key={rowId} class={{'row': true, 'selected-row': isSelected}}>
+              <div class="checkbox-cell">
                 <input
                   type="checkbox"
                   checked={isSelected}
                   onChange={(event) => this.onRowSelect(cells, (event.target as HTMLInputElement).checked)}
                 />
                 <span class="selection-indicator"></span>
-              </td>
+              </div>
               {cells.map((cell, cellIndex) => {
                 const isActiveCell = activeCellId === `${cellIndex + 1}-${rowIndex}`;
-                return <td
-                  role="gridcell"
+                return <div
                   class={{'cell': true, 'editing': this.isEditing && isActiveCell }}
                   id={`cell-${rowIndex}-${cellIndex}`}
                   tabIndex={0}
@@ -207,12 +206,12 @@ export class SuiGrid {
                     ? <input value={cell} class="cell-edit" />
                     : <span class="cell-content">{cell}</span>
                   }
-                </td>;
+                </div>;
               })}
-            </tr>;
+            </div>;
           })}
-        </tbody>
-      </table>
+        </div>
+      </div>
     </div>;
   }
 
