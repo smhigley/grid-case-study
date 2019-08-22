@@ -1,6 +1,6 @@
 # A Study in Accessibility: Grid Example
 
-This is a demo of an editable data grid with numerous accessibility errors, paired with a talk on accessibility in more complex scenarios.
+This is a demo of an editable data grid with numerous accessibility errors, paired with a talk on accessibility in more complex scenarios. The slides are on [github](https://smhigley.github.io/slides/a11y-grid-slides).
 
 ## Branches with a11y fixes:
 
