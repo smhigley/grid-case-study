@@ -158,7 +158,6 @@ export class SuiGrid {
     const {
       columns = [],
       description,
-      labelledby,
       _selectedRows,
       _sortedCells = [],
       sortedColumn,
@@ -168,14 +167,13 @@ export class SuiGrid {
     const activeCellId = this.activeCell.join('-');
 
     return <div class="grid-container">
-      <table role="grid" class="grid" aria-labelledby={labelledby}>
+      <table role="grid" class="grid">
         {description ? <caption class="grid-caption">{description}</caption> : null}
         <thead role="rowgroup" class="grid-header">
           <tr role="row" class="row">
             <th role="columnheader" class={{'checkbox-cell': true, 'indeterminate': rowSelectionState === 'indeterminate'}}>
               <input
                 type="checkbox"
-                aria-label="select all rows"
                 checked={!!rowSelectionState}
                 ref={(el) => {
                   if (rowSelectionState === 'indeterminate') {
@@ -192,20 +190,19 @@ export class SuiGrid {
               if (column.sortable) {
                 controls.push(<button
                   class={{ 'filter-button': true, 'grid-button': true, [sortState]: isSortedColumn }}
-                  aria-labelledby={`${idBase}-sort ${idBase}`}
                   onClick={() => this.onSortColumn(index)}
                 >
-                  <img alt={isSortedColumn ? sortState : 'sort'} id={`${idBase}-sort`} role="img" src={`/assets/sort-${isSortedColumn ? sortState : 'none'}.svg`} />
+                  <img alt={isSortedColumn ? sortState : 'sort'} id={`${idBase}-sort`} src={`/assets/sort-${isSortedColumn ? sortState : 'none'}.svg`} />
                 </button>);
               }
               if (column.filterable) {
                 controls.push(
                   <label id={`${idBase}-filter`} class="visuallyHidden">Filter</label>,
-                  <input type="text" aria-labelledby={`${idBase}-filter ${idBase}`} class="filter-input" onInput={(event) => this.onFilterInput((event.target as HTMLInputElement).value, column)} />
+                  <input type="text" class="filter-input" onInput={(event) => this.onFilterInput((event.target as HTMLInputElement).value, column)} />
                 );
               }
 
-              return <th role="columnheader" aria-labelledby={idBase} class="cell heading-cell" aria-sort={column.sortable ? isSortedColumn ? sortState : 'none' : null}>
+              return <th role="columnheader" class="cell heading-cell">
                 <span id={idBase} class="column-title">{column.name}</span>
                 {...controls}
               </th>
@@ -222,7 +219,6 @@ export class SuiGrid {
                 <input
                   type="checkbox"
                   checked={isSelected}
-                  aria-labelledby={`cell-${rowIndex}-${this.titleColumn}`}
                   tabIndex={activeCellId === `0-${rowIndex}` ? 0 : -1}
                   ref={activeCellId === `0-${rowIndex}` ? (el) => { this._focusRef = el; } : null}
                   onChange={(event) => this.onRowSelect(cells, (event.target as HTMLInputElement).checked)}
