@@ -1,5 +1,5 @@
 
-import { Component, Event, EventEmitter, Listen, Prop, State, Watch } from '@stencil/core';
+import { Component, Event, EventEmitter, Prop, State, Watch } from '@stencil/core';
 import { Column } from './grid-helpers';
 import nanoid from 'nanoid/non-secure';
 
@@ -109,12 +109,6 @@ export class SuiGrid {
   // Save a reference to whatever element should receive focus
   private _focusRef: HTMLElement;
 
-  /*
-   * Private properties used to trigger DOM methods in the correct lifecycle callback
-   */
-  private _callFocus = false;
-  private _callInputSelection = false;
-
   @Watch('cells')
   watchCells(newValue: string[][]) {
     this._sortedCells = this.getSortedCells(newValue);
@@ -135,23 +129,6 @@ export class SuiGrid {
     cells.forEach((row: string[]) => {
       !this._rowKeys.has(row) && this._rowKeys.set(row, nanoid(8));
     });
-  }
-
-  componentDidUpdate() {
-    // handle focus
-    this._callFocus && this._focusRef && this._focusRef.focus();
-    this._callFocus = false;
-
-    // handle input text selection
-    this._callInputSelection && this._focusRef && (this._focusRef as HTMLInputElement).select();
-    this._callInputSelection = false;
-  }
-
-  @Listen('focusout')
-  onBlur(event: FocusEvent) {
-    if (this.isEditing && event.relatedTarget && event.relatedTarget !== this._focusRef) {
-      this.updateEditing(false, false);
-    }
   }
 
   render() {
@@ -208,7 +185,7 @@ export class SuiGrid {
             })}
           </tr>
         </thead>
-        <tbody role="rowgroup" class="grid-body" onKeyDown={this.onCellKeydown.bind(this)}>
+        <tbody role="rowgroup" class="grid-body">
           {_sortedCells.map((cells = [], rowIndex) => {
             const isSelected = !!_selectedRows.get(cells);
             const rowId = this._rowKeys.get(cells);
@@ -221,7 +198,6 @@ export class SuiGrid {
                   tabIndex={activeCellId === `0-${rowIndex}` ? 0 : -1}
                   ref={activeCellId === `0-${rowIndex}` ? (el) => { this._focusRef = el; } : null}
                   onChange={(event) => this.onRowSelect(cells, (event.target as HTMLInputElement).checked)}
-                  onKeyDown={(event) => { (event.key === ' ' || event.key === 'Enter') && event.stopPropagation(); }}
                 />
                 <span class="selection-indicator"></span>
               </td>
@@ -237,7 +213,7 @@ export class SuiGrid {
                   onDblClick={this.onCellDoubleClick.bind(this)}
                 >
                   {this.isEditing && isActiveCell
-                    ? <input value={cell} class="cell-edit" onKeyDown={this.onInputKeyDown.bind(this)} ref={(el) => this._focusRef = el} />
+                    ? <input value={cell} class="cell-edit" ref={(el) => this._focusRef = el} />
                     : <span class="cell-content">{cell}</span>
                   }
                 </td>;
@@ -279,54 +255,14 @@ export class SuiGrid {
 
   private onCellClick(row, column) {
     if (this.activeCell.join('-') === `${column}-${row}`) {
-      this.updateEditing(true, true);
+      this.updateEditing(true);
     }
     this.activeCell = [column, row];
   }
 
   private onCellDoubleClick(event) {
-    this.updateEditing(true, true);
+    this.updateEditing(true);
     event.preventDefault();
-  }
-
-  private onCellKeydown(event: KeyboardEvent) {
-    const { pageLength } = this;
-    let [colIndex, rowIndex] = this.activeCell;
-    switch(event.key) {
-      case 'ArrowUp':
-        rowIndex = Math.max(0, rowIndex - 1);
-        break;
-      case 'ArrowDown':
-        rowIndex = Math.min(this.cells.length - 1, rowIndex + 1);
-        break;
-      case 'ArrowLeft':
-        colIndex = Math.max(0, colIndex - 1);
-        break;
-      case 'ArrowRight':
-        colIndex = Math.min(this.columns.length, colIndex + 1);
-        break;
-      case 'Home':
-        colIndex = 0;
-        break;
-      case 'End':
-        colIndex = this.columns.length;
-        break;
-      case 'Enter':
-      case ' ':
-        event.preventDefault();
-        this.updateEditing(true, true);
-        break;
-      case 'PageUp':
-        rowIndex = Math.max(0, rowIndex - pageLength);
-        break;
-      case 'PageDown':
-        rowIndex = Math.min(this.cells.length - 1, rowIndex + pageLength);
-        break;
-    }
-
-    if (this.updateActiveCell(colIndex, rowIndex)) {
-      event.preventDefault();
-    }
   }
 
   private onFilterInput(value: string, column: Column) {
@@ -343,34 +279,6 @@ export class SuiGrid {
     });
 
     this.filterEvent.emit(filters);
-  }
-
-  private onInputKeyDown(event: KeyboardEvent) {
-    // allow input to handle its own keystrokes
-    event.stopPropagation();
-
-    const { key, shiftKey } = event;
-
-    // switch out of edit mode on enter or escape
-    if (key === 'Escape' || key === 'Enter') {
-      this.updateEditing(false, true);
-    }
-
-    if (key === 'Enter') {
-      this.editCellEvent.emit({value: (event.target as HTMLInputElement).value, column: this.activeCell[0] - 1, row: this.activeCell[1]});
-    }
-
-    // allow tab and shift+tab to move through cells in a row
-    else if (key === 'Tab') {
-      if (shiftKey && this.activeCell[0] > 0) {
-        this.updateActiveCell(this.activeCell[0] - 1, this.activeCell[1]);
-        event.preventDefault();
-      }
-      else if (!shiftKey && this.activeCell[0] < this.columns.length - 1) {
-        this.updateActiveCell(this.activeCell[0] + 1, this.activeCell[1]);
-        event.preventDefault();
-      }
-    }
   }
 
   private onRowSelect(row: string[], selected: boolean) {
@@ -397,19 +305,17 @@ export class SuiGrid {
     this._sortedCells = this.getSortedCells(this.cells);
   }
 
-  private updateActiveCell(colIndex, rowIndex): boolean {
-    if (colIndex !== this.activeCell[0] || rowIndex !== this.activeCell[1]) {
-      this._callFocus = true;
-      this.activeCell = [colIndex, rowIndex];
-      return true;
-    }
+  // private updateActiveCell(colIndex, rowIndex): boolean {
+  //   if (colIndex !== this.activeCell[0] || rowIndex !== this.activeCell[1]) {
+  //     this._callFocus = true;
+  //     this.activeCell = [colIndex, rowIndex];
+  //     return true;
+  //   }
 
-    return false;
-  }
+  //   return false;
+  // }
 
-  private updateEditing(editing: boolean, callFocus: boolean) {
+  private updateEditing(editing: boolean) {
     this.isEditing = editing;
-    this._callFocus = callFocus;
-    this._callInputSelection = editing && callFocus;
   }
 }
