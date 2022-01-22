@@ -17,7 +17,7 @@
     "test.watch": "stencil test --spec --e2e --watchAll"
   },
   "dependencies": {
-    "nanoid": "^2.0.3"
+    "nanoid": "^3.1.31"
   },
   "devDependencies": {
     "@stencil/core": "^0.16.4"
